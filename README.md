@@ -7,11 +7,20 @@
 
 批量下载 Pornhub 上的相册或照片。
 
-```
+```powershell
 示例 .\ppd "https://cn.pornhub.com/album/48071401" -all
 ```
 
 ![00](docs/Images/00.png)
+
+## 设置
+
+**编辑“PPD.exe.config”以修改设置。**
+
+| 名称         | 描述               |
+| ------------ | ------------------ |
+| DownloadPath | 默认的下载路径。   |
+| RetryCount   | 下载失败重试次数。 |
 
 ## 参数
 
@@ -23,5 +32,5 @@
 | -Length:{value} | 指定将下载的照片数量。           | 指定“-All”时选项将被忽略。 |
 | -Debug          | 显示调试信息。                   |                            |
 | -Info           | 显示更多的调试信息。             | 这是“-Debug”的附加选项。   |
-| -Lang:{value}   | 指定区域。                       | -Lang:zh_CN                |
+| -Lang:{value}   | 指定区域。                       | -Lang:en                   |
 
