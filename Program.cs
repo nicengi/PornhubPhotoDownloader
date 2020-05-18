@@ -11,6 +11,8 @@ namespace PornhubPhotoDownloader
 {
     class Program
     {
+        const int SETTING_RETRYCOUNT = 5;
+
         const string ARG_HELP = "?";
         const string ARG_DOWNLOADDIR = "dir";
         const string ARG_ALL = "all";
@@ -19,11 +21,23 @@ namespace PornhubPhotoDownloader
         const string ARG_DEBUG = "debug";
         const string ARG_DEBUG_INFO = "info";
         const string ARG_LANG = "lang";
+        const string ARG_RENAME = "rename";
+
+        const string REPLACE_DOWNLOADDIR_ALBUM = "{album}";
+        const string REPLACE_DOWNLOADDIR_ID = "{id}";
+        const string REPLACE_DOWNLOADDIR_PAGE = "{page}";
+
+        const string REPLACE_PHOTO_INDEX = "{index}";
+        const string REPLACE_PHOTO_ID = "{id}";
+        const string REPLACE_PHOTO_ALBUM_ID = "{albumid}";
+        const string REPLACE_PHOTO_ALBUM = "{album}";
+        const string REPLACE_PHOTO_EXT = "{ext}";
 
         static WebClient WebClient = new WebClient();
         static Dictionary<string, string> Args = new Dictionary<string, string>();
         static bool IsDebug;
         static bool IsDebugInfo;
+        static string DefaultDownloadDir = Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), "Downloads\\{id}");
 
         static void Main(string[] args)
         {
@@ -77,17 +91,22 @@ namespace PornhubPhotoDownloader
                 Console.WriteLine(string.Format("   -Length:<value>     {0}", Properties.Resources.Msg_Help_Length));
                 Console.WriteLine(string.Format("   -Debug              {0}", Properties.Resources.Msg_Help_Debug));
                 Console.WriteLine(string.Format("   -Info               {0}", Properties.Resources.Msg_Help_DebugInfo));
+                Console.WriteLine(string.Format("   -Rename:<pattern>   {0}", Properties.Resources.Msg_Help_Rename));
+                Console.WriteLine();
+                Console.WriteLine(Properties.Resources.Msg_Help_Rename_Keywords);
+                Console.WriteLine();
+                Console.WriteLine(Properties.Resources.Msg_Help_DownloadDir_Keywords);
                 Console.WriteLine();
                 return;
             }
 
             if (!Args.ContainsKey(ARG_DOWNLOADDIR))
             {
-                Args.Add(ARG_DOWNLOADDIR, Properties.Settings.Default.DownloadPath);
+                Args.Add(ARG_DOWNLOADDIR, DefaultDownloadDir);
             }
             if (string.IsNullOrWhiteSpace(Args[ARG_DOWNLOADDIR]))
             {
-                Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), "Downloads");
+                Args[ARG_DOWNLOADDIR] = DefaultDownloadDir;
             }
 
             IsDebug = Args.ContainsKey(ARG_DEBUG);
@@ -146,7 +165,7 @@ namespace PornhubPhotoDownloader
                                 continue;
                             }
 
-                            DownloadAlbum(albumHtmlText, argLink, Path.Combine(Args[ARG_DOWNLOADDIR], argLink.ID));
+                            DownloadAlbum(albumHtmlText, argLink, GetDownloadDir(argLink, albumHtmlText, pageIndex.ToString()));
                             pageIndex++;
                             argLink.Args = $"?page={pageIndex}";
                             Console.WriteLine(string.Format(Properties.Resources.Msg_Album_Download, argLink.FullUrl));
@@ -173,14 +192,14 @@ namespace PornhubPhotoDownloader
                         }
 
                         DownloadAlbum(albumHtmlText, argLink,
-                            Path.Combine(Args[ARG_DOWNLOADDIR], argLink.ID),
+                            GetDownloadDir(argLink, albumHtmlText, "1"),
                             Args.ContainsKey(ARG_STARTINDEX) ? Convert.ToInt32(Args[ARG_STARTINDEX]) : 0,
                             Args.ContainsKey(ARG_LENGTH) ? Convert.ToInt32(Args[ARG_LENGTH]) : 0);
                     }
                 }
                 else if (argLink.Type.ToLower() == "photo")
                 {
-                    DownloadPhoto(argLink, Args[ARG_DOWNLOADDIR]);
+                    DownloadPhoto(argLink, GetDownloadDir(argLink, string.Empty));
                 }
             }
             catch (Exception e)
@@ -192,6 +211,27 @@ namespace PornhubPhotoDownloader
             Console.WriteLine(Properties.Resources.Msg_AllDone);
             Console.ResetColor();
             Console.WriteLine();
+        }
+
+        static string GetDownloadDir(LinkInfo link, string htmlText, string pageIndex = "0")
+        {
+            string albumName = $"{link.Type}-{link.ID}";
+            Regex albumNameRegex = new Regex("<h1 class=\"photoAlbumTitleV2\">\\s*(?<album>[\\S\\s].*?)\\s*<span .*?></span>\\s*</h1>");
+            if (albumNameRegex.IsMatch(htmlText))
+            {
+                albumName = albumNameRegex.Match(htmlText).Groups["album"].Value;
+            }
+
+            string result = Args[ARG_DOWNLOADDIR]
+                .Replace(REPLACE_DOWNLOADDIR_ALBUM, albumName)
+                .Replace(REPLACE_DOWNLOADDIR_ID, link.ID)
+                .Replace(REPLACE_DOWNLOADDIR_PAGE, pageIndex);
+            foreach (char ch in Path.GetInvalidPathChars())
+            {
+                result = result.Replace(ch.ToString(), string.Empty);
+            }
+
+            return result;
         }
 
         static void DownloadAlbum(string albumHtmlText, LinkInfo albumLink, string downloadDir, int startIndex = 0, int length = 0)
@@ -258,10 +298,35 @@ namespace PornhubPhotoDownloader
                     Console.ForegroundColor = ConsoleColor.Blue;
                     Console.WriteLine(string.Format(Properties.Resources.Msg_Photo_Downloading, Path.GetFileName(photoSourceUrl), i + 1, photoLinks.Length));
                     Console.ResetColor();
-                    WebClient.DownloadFile(photoSourceUrl, Path.Combine(downloadDir, Path.GetFileName(photoSourceUrl)));
+
+                    string fileName = Path.GetFileName(photoSourceUrl);
+                    if (Args.ContainsKey(ARG_RENAME) && !string.IsNullOrWhiteSpace(Args[ARG_RENAME]))
+                    {
+                        Regex fromAlbumRegex = new Regex("<a href=\"/album/(?<album_id>[0-9]+)\">(?<album>.*?)</a>");
+                        Match fromAlbumMatch = fromAlbumRegex.Match(photoHtmlText);
+                        string r_index = i.ToString();
+                        string r_id = photoLink.ID;
+                        string r_albumid = fromAlbumMatch.Groups["album_id"].Value;
+                        string r_album = fromAlbumMatch.Groups["album"].Value;
+                        string r_ext = Path.GetExtension(photoSourceUrl);
+
+                        fileName = Args[ARG_RENAME]
+                            .Replace(REPLACE_PHOTO_INDEX, r_index)
+                            .Replace(REPLACE_PHOTO_ID, r_id)
+                            .Replace(REPLACE_PHOTO_ALBUM_ID, r_albumid)
+                            .Replace(REPLACE_PHOTO_ALBUM, r_album)
+                            .Replace(REPLACE_PHOTO_EXT, r_ext);
+
+                        foreach (char ch in Path.GetInvalidFileNameChars())
+                        {
+                            fileName = fileName.Replace(ch.ToString(), string.Empty);
+                        }
+                    }
+
+                    WebClient.DownloadFile(photoSourceUrl, Path.Combine(downloadDir, fileName));
                     ConsoleBackLine();
                     Console.ForegroundColor = ConsoleColor.Green;
-                    Console.WriteLine(string.Format(Properties.Resources.Msg_Photo_DownloadCompleted, photoLink.FullUrl /*Path.GetFileName(photoSourceUrl)*/, i + 1, photoLinks.Length));
+                    Console.WriteLine(string.Format(Properties.Resources.Msg_Photo_DownloadCompleted, photoLink.FullUrl /*Path.GetFileName(photoSourceUrl)*/, i + 1, photoLinks.Length, fileName));
                     Console.ResetColor();
                     retryCount = 0;
                 }
@@ -272,7 +337,7 @@ namespace PornhubPhotoDownloader
                         ConsoleBackLine();
                     }
                     ThrowException(e);
-                    if (retryCount < Properties.Settings.Default.RetryCount)
+                    if (retryCount < SETTING_RETRYCOUNT)
                     {
                         retryCount++;
                         if (IsDebug)

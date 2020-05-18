@@ -115,11 +115,39 @@ namespace PornhubPhotoDownloader.Properties {
         }
         
         /// <summary>
+        ///   查找类似 指定“-Dir”选项时可用使用“{id}”、“{album}”、“{page}”关键字。
+        ///下载照片时“{album}”关键字将被格式化为“photo-{id}”。 的本地化字符串。
+        /// </summary>
+        internal static string Msg_Help_DownloadDir_Keywords {
+            get {
+                return ResourceManager.GetString("Msg.Help.DownloadDir.Keywords", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   查找类似 指定将下载的照片数量。指定“-All”时选项将被忽略。 的本地化字符串。
         /// </summary>
         internal static string Msg_Help_Length {
             get {
                 return ResourceManager.GetString("Msg.Help.Length", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   查找类似 使用指定的格式重命名文件。 的本地化字符串。
+        /// </summary>
+        internal static string Msg_Help_Rename {
+            get {
+                return ResourceManager.GetString("Msg.Help.Rename", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   查找类似 指定“-Rename”选项时可用使用“{index}”、“{id}”、“{albumid}”、“{album}”、“{ext}”关键字。 的本地化字符串。
+        /// </summary>
+        internal static string Msg_Help_Rename_Keywords {
+            get {
+                return ResourceManager.GetString("Msg.Help.Rename.Keywords", resourceCulture);
             }
         }
         
