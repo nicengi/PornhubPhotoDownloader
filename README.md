@@ -13,7 +13,7 @@
 
 #### 重命名
 
-​	使用[关键字](@参数)以重命名下载目录和文件名。	
+​	使用[关键字](#参数)以重命名下载目录和文件名。	
 
 ```powershell
 示例 .\ppd "https://cn.pornhub.com/album/48071401" -all -dir:"Downloads\{album}"
